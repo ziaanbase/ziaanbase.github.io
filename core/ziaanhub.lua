@@ -7,6 +7,10 @@ local Games = {
   [2753915549] = "https://ziaanbase.github.io/games/Blox%20Fruit/main.lua", -- Blox Fruit Sea 1
   [4442272183] = "https://ziaanbase.github.io/games/Blox%20Fruit/main.lua", -- Blox Fruit Sea 2
   [7449423635] = "https://ziaanbase.github.io/games/Blox%20Fruit/main.lua", -- Blox Fruit Sea 3  
+  [2753915549] = "https://ziaanbase.github.io/games/Blox%20Fruit/Notify/main.lua", -- Blox Fruit Sea 1
+  [4442272183] = "https://ziaanbase.github.io/games/Blox%20Fruit/Notify/main.lua", -- Blox Fruit Sea 2
+  [7449423635] = "https://ziaanbase.github.io/games/Blox%20Fruit/Notify/main.lua", -- Blox Fruit Sea 3  
+  
   [10324346056] = "https://ziaanbase.github.io/games/Evade/main.lua", -- evade Big Team
   [9872472334] = "https://ziaanbase.github.io/games/Evade/main.lua", -- evade EVADE
   [10662542523] = "https://ziaanbase.github.io/games/Evade/main.lua", -- evade Casual
