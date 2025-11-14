@@ -27,8 +27,7 @@ local Games = {
   [12334109280] = "https://ziaanbase.github.io/games/Guts%20and%20Blackpowder/main.lua", -- Guns & Black Powder
   [14216737767] = "https://ziaanbase.github.io/games/Guts%20and%20Blackpowder/main.lua", -- Guns & Black Powder Mobile
   [12334109280] = "https://ziaanbase.github.io/games/Guts%20and%20Blackpowder/Notify/main.lua", -- Guns & Black Powder
-  [14216737767] = "https://ziaanbase.github.io/games/Guts%20and%20Blackpowder/Notify/main.lua", -- Guns & Black Powder Mobile
-   
+  [14216737767] = "https://ziaanbase.github.io/games/Guts%20and%20Blackpowder/Notify/main.lua", -- Guns & Black Powder Mobile   
   [93978595733734] = "https://ziaanbase.github.io/games/Violence%20District/main.lua", -- Violence District 
   [93978595733734] = "https://ziaanbase.github.io/games/Violence%20District/Notify/main.lua", -- VD Notify
 }
