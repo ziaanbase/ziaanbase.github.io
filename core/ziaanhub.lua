@@ -1,5 +1,6 @@
 local Games = {
   [82321750197896] = "https://ziaanbase.github.io/games/Poop%20a%20Brainrot/main.lua", -- PoopABrainRot  
+  [82321750197896] = "https://ziaanbase.github.io/games/Poop%20a%20Brainrot/Notify/main.lua", 
   [113604074601559] = "https://ziaanbase.github.io/games/Build%20a%20Beehive/main.lua",  -- "Build a Beehive
   [113604074601559] = "https://ziaanbase.github.io/games/Build%20a%20Beehive/Notify/main.lua",  -- "BAB Notify  
   [2753915549] = "https://ziaanbase.github.io/games/Blox%20Fruit/main.lua", -- Blox Fruit Sea 1
