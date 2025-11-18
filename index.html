@@ -1,0 +1,295 @@
+<!doctype html>
+
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ZCode — VSCode-like editor (static, localStorage)</title>
+  <style>
+    :root{--bg:#0f1720;--panel:#0b1220;--muted:#94a3b8;--accent:#7c3aed;--surface:#0b1220}
+    *{box-sizing:border-box;font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial}
+    html,body,#app{height:100%;margin:0}
+    body{background:linear-gradient(180deg,#071021 0%, #071827 100%);color:#e6eef8}
+    #app{display:grid;grid-template-columns:260px 1fr;grid-template-rows:48px 1fr;gap:8px;padding:12px}
+    header{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(255,255,255,0.02);border-radius:8px}
+    .brand{display:flex;align-items:center;gap:10px}
+    .logo{width:36px;height:36px;border-radius:6px;background:linear-gradient(135deg,var(--accent),#06b6d4);display:flex;align-items:center;justify-content:center;font-weight:700}
+    .controls{display:flex;gap:8px;align-items:center}
+    .btn{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.03);padding:6px 10px;border-radius:6px;cursor:pointer}
+    .btn:active{transform:translateY(1px)}
+    aside{background:rgba(255,255,255,0.02);padding:10px;border-radius:8px;height:100%;display:flex;flex-direction:column}
+    .file-actions{display:flex;gap:6px;margin-bottom:8px}
+    .files{overflow:auto;flex:1;padding-right:6px}
+    .file{padding:8px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;background:transparent}
+    .file:hover{background:rgba(255,255,255,0.01)}
+    .file.active{background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-left:3px solid var(--accent);padding-left:6px}
+    #editorContainer{height:calc(100vh - 120px);border-radius:8px;overflow:hidden}
+    .statusbar{display:flex;gap:12px;align-items:center;padding:8px 12px;background:rgba(255,255,255,0.01);border-radius:8px;margin-top:8px}
+    .muted{color:var(--muted);font-size:13px}
+    input[type="text"]{background:transparent;border:1px dashed rgba(255,255,255,0.04);padding:6px;border-radius:6px;color:inherit}
+    .small{font-size:13px}
+    .help{font-size:13px;color:var(--muted)}
+    .file-list-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+    .search{width:100%;padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.03);background:transparent;color:inherit;margin-bottom:8px}
+    a.link{color:#93c5fd;text-decoration:none}
+    .kbd{background:rgba(255,255,255,0.03);padding:2px 6px;border-radius:4px;font-size:12px}
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <div class="brand">
+        <div class="logo">Z</div>
+        <div>
+          <div style="font-weight:700">ZCode</div>
+          <div class="muted small">VSCode-like editor • localStorage • GitHub Pages</div>
+        </div>
+      </div>
+      <div class="controls">
+        <button id="newBtn" class="btn">New</button>
+        <button id="saveBtn" class="btn">Save <span class="kbd">Ctrl+S</span></button>
+        <button id="downloadBtn" class="btn">Download</button>
+        <button id="importBtn" class="btn">Import</button>
+        <button id="themeToggle" class="btn">Theme</button>
+        <button id="helpBtn" class="btn">Help</button>
+      </div>
+    </header><aside>
+  <div class="file-list-head">
+    <div style="font-weight:600">Files</div>
+    <div class="muted small">Stored in localStorage</div>
+  </div>
+  <input placeholder="Search files..." id="search" class="search" />
+  <div class="file-actions">
+    <button id="newFileBtn" class="btn">+ File</button>
+    <button id="newFolderBtn" class="btn">+ Folder</button>
+  </div>
+  <div class="files" id="fileList"></div>
+  <div class="statusbar">
+    <div class="muted">User: <span id="ghPath">username.github.io/ZCode</span></div>
+    <div class="muted">Storage: <span id="storageUsage">-</span></div>
+  </div>
+</aside>
+
+<main style="grid-column:2;display:flex;flex-direction:column;gap:8px">
+  <div style="display:flex;align-items:center;gap:10px">
+    <input id="filename" type="text" placeholder="untitled.js" style="flex:1" />
+    <select id="language">
+      <option value="javascript">JavaScript</option>
+      <option value="typescript">TypeScript</option>
+      <option value="html">HTML</option>
+      <option value="css">CSS</option>
+      <option value="json">JSON</option>
+      <option value="python">Python</option>
+    </select>
+  </div>
+
+  <div id="editorContainer"></div>
+
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <div class="muted">Theme: <span id="currentTheme">dark</span></div>
+    <div class="help">Deploy: push this folder to a GitHub repo named <code>ZCode</code> then enable GitHub Pages on the repo — site will be at <code>username.github.io/ZCode</code></div>
+  </div>
+</main>
+
+  </div>  <!-- Monaco loader from unpkg (works for static pages) -->  <script>
+    // Simple in-page file system using localStorage
+    const STORAGE_KEY_FILES = 'zcode.files.v1';
+    const STORAGE_KEY_SETTINGS = 'zcode.settings.v1';
+
+    function loadFiles() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY_FILES) || '{}'); } catch(e){return {}} }
+    function saveFiles(obj){ localStorage.setItem(STORAGE_KEY_FILES, JSON.stringify(obj)); updateStorageUsage(); }
+    function loadSettings(){ try{return JSON.parse(localStorage.getItem(STORAGE_KEY_SETTINGS) || '{}')}catch(e){return{}} }
+    function saveSettings(s){ localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(s)); }
+
+    // example starter files
+    const starter = {
+      'README.md':'# Welcome to ZCode\nThis simple VSCode-like editor is stored in your browser localStorage.\n\n- Create files, edit, and save.\n- Files persist on this device and browser.\n- Deploy to GitHub Pages by pushing this project to a repo named `ZCode`.',
+      'index.html':'<!doctype html>\n<html><head><meta charset="utf-8"><title>Demo</title></head><body><h1>Hello from ZCode</h1></body></html>',
+      'main.js':'console.log("Hello ZCode");',
+      'style.css':'body{font-family:sans-serif;background:#f3f4f6}'
+    };
+
+    // UI helpers
+    const fileListEl = document.getElementById('fileList');
+    const filenameInput = document.getElementById('filename');
+    const languageSel = document.getElementById('language');
+    const newFileBtn = document.getElementById('newFileBtn');
+    const newFolderBtn = document.getElementById('newFolderBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const newBtn = document.getElementById('newBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const importBtn = document.getElementById('importBtn');
+    const themeToggle = document.getElementById('themeToggle');
+    const helpBtn = document.getElementById('helpBtn');
+    const searchInput = document.getElementById('search');
+    const ghPath = document.getElementById('ghPath');
+    const storageUsage = document.getElementById('storageUsage');
+    const currentThemeEl = document.getElementById('currentTheme');
+
+    let files = loadFiles();
+    if(Object.keys(files).length===0){ files=starter; saveFiles(files); }
+    let settings = loadSettings();
+    let activeFile = Object.keys(files)[0] || null;
+
+    // Monaco setup
+    const requireScript = document.createElement('script');
+    requireScript.src = 'https://unpkg.com/monaco-editor@0.34.1/min/vs/loader.js';
+    document.body.appendChild(requireScript);
+    requireScript.onload = () => {
+      // configure loader
+      require.config({ paths: { 'vs': 'https://unpkg.com/monaco-editor@0.34.1/min/vs' }});
+      require(['vs/editor/editor.main'], function() {
+        window.editor = monaco.editor.create(document.getElementById('editorContainer'), {
+          value: '',
+          language: 'javascript',
+          theme: 'vs-dark',
+          automaticLayout:true,
+          minimap:{enabled:false}
+        });
+
+        // wire up keyboard save
+        window.addEventListener('keydown', (e)=>{
+          if((e.ctrlKey||e.metaKey) && e.key.toLowerCase() === 's'){ e.preventDefault(); saveFile(); }
+        });
+
+        renderFileList();
+        openFile(activeFile);
+        updateStorageUsage();
+      });
+    };
+
+    function updateStorageUsage(){
+      try{
+        const raw = localStorage.getItem(STORAGE_KEY_FILES)||'';
+        const bytes = new Blob([raw]).size;
+        storageUsage.textContent = (bytes/1024).toFixed(1)+" KB";
+      }catch(e){storageUsage.textContent='-';}
+    }
+
+    function renderFileList(filter=""){
+      fileListEl.innerHTML='';
+      const keys = Object.keys(files).sort();
+      keys.filter(k=>k.toLowerCase().includes(filter.toLowerCase())).forEach(name=>{
+        const el = document.createElement('div'); el.className='file'+(name===activeFile? ' active':'');
+        const left = document.createElement('div'); left.style.display='flex';left.style.gap='8px';left.style.alignItems='center';
+        const icon = document.createElement('div'); icon.textContent = name.split('.').pop() || 'txt'; icon.style.opacity=0.7;icon.style.fontSize='12px';
+        const title = document.createElement('div'); title.textContent = name; title.style.flex='1';
+        left.appendChild(icon);left.appendChild(title);
+        const right = document.createElement('div'); right.style.display='flex'; right.style.gap='6px';
+        const openBtn = document.createElement('button'); openBtn.className='btn small'; openBtn.textContent='Open'; openBtn.onclick=()=>openFile(name);
+        const more = document.createElement('button'); more.className='btn small'; more.textContent='⋯'; more.onclick=()=>fileMenu(name);
+        right.appendChild(openBtn); right.appendChild(more);
+        el.appendChild(left); el.appendChild(right);
+        fileListEl.appendChild(el);
+      });
+    }
+
+    function fileMenu(name){
+      const action = prompt(`Options for ${name}: type "rename" or "delete" or "duplicate"`,'rename');
+      if(!action) return;
+      if(action==='delete'){
+        if(confirm('Delete '+name+'?')){ delete files[name]; saveFiles(files); if(activeFile===name) activeFile=null; renderFileList(); openFile(Object.keys(files)[0]||null); }
+      } else if(action==='rename'){
+        const n = prompt('New name',name); if(n && n!==name){ files[n]=files[name]; delete files[name]; saveFiles(files); activeFile=n; renderFileList(); openFile(n); }
+      } else if(action==='duplicate'){
+        const n = prompt('Duplicate name', 'copy-'+name); if(n){ files[n]=files[name]; saveFiles(files); renderFileList(); }
+      }
+    }
+
+    function openFile(name){
+      if(!name) return;
+      activeFile=name; filenameInput.value=name;
+      const ext = name.split('.').pop();
+      const lang = mapExtToLang(ext);
+      languageSel.value = lang || 'javascript';
+      if(window.editor){ monaco.editor.setModelLanguage(window.editor.getModel(), langMapToMonaco(languageSel.value)); window.editor.setValue(files[name]||''); }
+      renderFileList();
+    }
+
+    function mapExtToLang(ext){
+      if(!ext) return 'javascript';
+      if(['js'].includes(ext)) return 'javascript';
+      if(['ts'].includes(ext)) return 'typescript';
+      if(['html','htm'].includes(ext)) return 'html';
+      if(['css'].includes(ext)) return 'css';
+      if(['json'].includes(ext)) return 'json';
+      if(['py'].includes(ext)) return 'python';
+      return 'javascript';
+    }
+
+    function langMapToMonaco(l){ if(l==='javascript')return 'javascript'; if(l==='typescript')return 'typescript'; if(l==='html')return 'html'; if(l==='css')return 'css'; if(l==='json')return 'json'; if(l==='python')return 'python'; return 'javascript'; }
+
+    function saveFile(){
+      if(!activeFile){ alert('No file open'); return; }
+      files[activeFile] = window.editor.getValue(); saveFiles(files);
+      alert('Saved '+activeFile);
+    }
+
+    // UI events
+    newFileBtn.onclick = ()=>{
+      const name = prompt('File name','untitled.txt');
+      if(!name) return; if(files[name]){ if(!confirm('Exists — overwrite?')) return; }
+      files[name] = '';
+      saveFiles(files);
+      activeFile = name; renderFileList(); openFile(name);
+    };
+
+    document.getElementById('newBtn').onclick = ()=>{
+      newFileBtn.click();
+    }
+
+    saveBtn.onclick = ()=> saveFile();
+
+    downloadBtn.onclick = ()=>{
+      if(!activeFile) return alert('No file open');
+      const blob = new Blob([files[activeFile]], {type:'text/plain'});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = activeFile; a.click();
+    };
+
+    importBtn.onclick = ()=>{
+      const inp = document.createElement('input'); inp.type='file'; inp.accept='*/*'; inp.onchange = async (e)=>{
+        const f = e.target.files[0]; if(!f) return; const txt = await f.text(); files[f.name]=txt; saveFiles(files); renderFileList();
+      }; inp.click();
+    };
+
+    themeToggle.onclick = ()=>{
+      settings.theme = settings.theme==='light' ? 'dark':'light'; saveSettings(settings); applyTheme(); }
+
+    helpBtn.onclick = ()=>{
+      alert('Tips:\n- Ctrl/Cmd+S to save.\n- Files are stored only on this browser & device (localStorage).\n- To publish: create a GitHub repo named ZCode, push this index.html (and assets) and enable GitHub Pages.');
+    }
+
+    searchInput.oninput = (e)=> renderFileList(e.target.value);
+
+    languageSel.onchange = ()=>{
+      if(window.editor) monaco.editor.setModelLanguage(window.editor.getModel(), langMapToMonaco(languageSel.value));
+    }
+
+    filenameInput.onchange = ()=>{
+      const newName = filenameInput.value.trim(); if(!newName) return alert('Invalid name');
+      if(newName===activeFile) return;
+      if(files[newName] && !confirm('Replace existing file?')){ filenameInput.value=activeFile; return; }
+      files[newName]=files[activeFile]; delete files[activeFile]; activeFile=newName; saveFiles(files); renderFileList(); openFile(newName);
+    }
+
+    function applyTheme(){
+      const t = settings.theme||'dark'; currentThemeEl.textContent = t;
+      if(window.editor){ monaco.editor.setTheme(t==='dark'?'vs-dark':'vs'); }
+    }
+
+    // on unload, save editor content to active file
+    window.addEventListener('beforeunload', ()=>{ if(activeFile && window.editor) files[activeFile]=window.editor.getValue(); saveFiles(files); });
+
+    // initial
+    document.addEventListener('DOMContentLoaded', ()=>{
+      settings = Object.assign({theme:'dark'}, settings);
+      applyTheme();
+      // show GH path placeholder — user should edit
+      const repoName = 'ZCode';
+      const user = localStorage.getItem('zcode.ghuser') || 'username';
+      ghPath.textContent = `${user}.github.io/${repoName}`;
+    });
+
+    // expose small API: allow saving external content to localStorage via URL hash
+    // e.g. index.html#import={"hello.txt":"content
